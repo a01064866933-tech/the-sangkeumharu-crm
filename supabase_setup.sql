@@ -92,6 +92,40 @@ grant insert on table public.inquiries to anon;
 grant select, insert, update, delete on table public.inquiries to authenticated;
 revoke select, update, delete on table public.inquiries from anon;
 
+-- 단체주문 견적 버전 보관: 모바일 CRM에서 금액을 수정할 때마다 새 버전으로 저장합니다.
+create table if not exists public.order_quotes (
+  id uuid primary key default gen_random_uuid(),
+  inquiry_id uuid not null references public.inquiries(id) on delete cascade,
+  revision integer not null check (revision >= 1),
+  item_name text not null check (char_length(item_name) between 1 and 160),
+  quantity integer not null check (quantity >= 1),
+  unit_price integer not null check (unit_price >= 0),
+  product_amount integer not null check (product_amount >= 0),
+  delivery_fee integer not null default 0 check (delivery_fee >= 0),
+  extra_fee integer not null default 0 check (extra_fee >= 0),
+  discount_amount integer not null default 0 check (discount_amount >= 0),
+  total_amount integer not null check (total_amount >= 0),
+  valid_until date,
+  memo text check (memo is null or char_length(memo) <= 1000),
+  created_by uuid default auth.uid(),
+  created_at timestamptz not null default now(),
+  unique (inquiry_id, revision)
+);
+
+create index if not exists order_quotes_inquiry_revision_idx
+on public.order_quotes (inquiry_id, revision desc);
+
+alter table public.order_quotes enable row level security;
+drop policy if exists "owner_manage_order_quotes" on public.order_quotes;
+create policy "owner_manage_order_quotes"
+on public.order_quotes
+for all
+to authenticated
+using ((auth.jwt() ->> 'email') in ('a01064866933@gmail.com','19799947js@daum.net'))
+with check ((auth.jwt() ->> 'email') in ('a01064866933@gmail.com','19799947js@daum.net'));
+grant select, insert, update, delete on table public.order_quotes to authenticated;
+revoke all on table public.order_quotes from anon;
+
 create table if not exists public.reply_templates (
   id uuid primary key default gen_random_uuid(),
   lead_type text not null check (lead_type in ('group_order','class','writer')),
