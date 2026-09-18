@@ -98,6 +98,7 @@ create table if not exists public.order_quotes (
   inquiry_id uuid not null references public.inquiries(id) on delete cascade,
   revision integer not null check (revision >= 1),
   item_name text not null check (char_length(item_name) between 1 and 160),
+  menu_summary text check (menu_summary is null or char_length(menu_summary) <= 500),
   quantity integer not null check (quantity >= 1),
   unit_price integer not null check (unit_price >= 0),
   product_amount integer not null check (product_amount >= 0),
@@ -111,6 +112,10 @@ create table if not exists public.order_quotes (
   created_at timestamptz not null default now(),
   unique (inquiry_id, revision)
 );
+
+alter table public.order_quotes
+add column if not exists menu_summary text
+check (menu_summary is null or char_length(menu_summary) <= 500);
 
 create index if not exists order_quotes_inquiry_revision_idx
 on public.order_quotes (inquiry_id, revision desc);
